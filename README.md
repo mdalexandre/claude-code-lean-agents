@@ -23,11 +23,26 @@ When Claude Code hands work to the built-in **general-purpose** subagent, that a
 - the definition of every tool from every MCP server you have connected
 - the list of every other agent it could start
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/visuals/loads-dark.svg">
+  <img src="assets/visuals/loads-light.svg" alt="Side by side: a general-purpose subagent loads your brief, its system prompt, every CLAUDE.md file, the skills list, every MCP tool and the agent list, about 131k tokens; lean-worker and lean-checker load only the brief, a short system prompt with 6 to 8 tools and a few house rules, about 7.4k to 7.8k tokens. 654 of 852 general-purpose runs (77%) never called an MCP tool." width="100%">
+</picture>
+
 Then it carries all of that on **every turn**, because each turn of an agent resends its whole context. A post on the Claude developer blog about task costs puts it plainly: "Every turn resends the conversation so far." Cached reads are cheap, but they still count toward your usage.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/visuals/turns-dark.svg">
+  <img src="assets/visuals/turns-light.svg" alt="Over a 10 turn job the starting load is sent on every turn: 1.31M tokens for general-purpose against 74k tokens for lean-worker." width="100%">
+</picture>
 
 If you have a rich setup (a long CLAUDE.md, a few dozen skills, a handful of MCP servers), most of that load has nothing to do with the job. A subagent asked to rename a function across three files does not need your Slack MCP, your PDF skill or your notes on deploy policy.
 
 I measured it across my own transcripts. This is the context each agent type carried on its **first** API request, before doing any work:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/visuals/start-dark.svg">
+  <img src="assets/visuals/start-light.svg" alt="Bar chart: a general-purpose subagent starts 17 to 18 times heavier. Median starting tokens: general-purpose 131.1k, fork 104.6k, Plan 61.2k, Explore 60.2k, lean-checker 7.8k (about 17x less), lean-worker 7.4k (about 18x less)." width="100%">
+</picture>
 
 | Agent type | Runs | Median start | What it loads |
 |---|---:|---:|---|
@@ -50,6 +65,7 @@ Your numbers will be different, because the gap depends on how heavy your setup 
 | `agents/lean-checker.md` | Blind, read only checker: tests an artifact against criteria, PASS or FAIL per criterion with evidence |
 | `hooks/lean_dispatch_nudge.py` | Optional hook that nudges Claude toward the lean agents when it reaches for general-purpose |
 | `scripts/measure_subagents.py` | Reads your transcripts and prints the starting context of every agent type you use |
+| `scripts/make_visuals.py` | Redraws the diagrams in this README from `assets/visuals/spec.json` |
 | `install.sh`, `uninstall.sh` | Copy the agents (and optionally the hook) into place, with backups |
 
 ## How it works
@@ -108,6 +124,13 @@ Claude picks a subagent by its description, and both descriptions say "use it in
 **Permissions work as usual.** The lean agents follow your normal Claude Code permission settings. In the interactive app, Claude asks you before an agent edits a file or runs a command. In a headless run (`claude -p`), nothing can be asked, so allow what the job needs up front, for example `--permission-mode acceptEdits --allowedTools Bash`, or the agents can only read. lean-checker reports a criterion it could not run as UNTESTED rather than guessing PASS.
 
 **For blind QA, keep the brief blind.** Give lean-checker the artifact, the criteria and the file paths, never your own verdict. A checker told "I verified this works, please confirm" will usually confirm.
+
+The whole choice in one picture:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/visuals/which-dark.svg">
+  <img src="assets/visuals/which-light.svg" alt="Decision flow: if the job needs an MCP tool or a skill, use general-purpose or a specialist; if it relies on long rules in CLAUDE.md, use general-purpose; if it is a broad read only code search, use Explore; if it checks work against criteria, use lean-checker; otherwise use lean-worker." width="100%">
+</picture>
 
 ### When not to use them
 

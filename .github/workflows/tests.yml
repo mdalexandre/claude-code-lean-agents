@@ -21,7 +21,10 @@ jobs:
         run: ruff check --select E,F,I --line-length 100 hooks scripts tests
 
       - name: Type check
-        run: mypy --strict hooks/lean_dispatch_nudge.py scripts/measure_subagents.py
+        run: mypy --strict hooks/lean_dispatch_nudge.py scripts/measure_subagents.py scripts/make_visuals.py
+
+      - name: README diagrams match their spec
+        run: python scripts/make_visuals.py --check
 
       - name: Hook tests
         run: pytest -q tests
@@ -30,6 +33,9 @@ jobs:
         run: |
           python - <<'PY'
           import yaml
+          import xml.etree.ElementTree as ET, glob
+          for svg in glob.glob("assets/visuals/*.svg"):
+              ET.parse(svg)
           for path in ("agents/lean-worker.md", "agents/lean-checker.md"):
               meta = yaml.safe_load(open(path).read().split("---")[1])
               for key in ("name", "description", "tools", "model"):

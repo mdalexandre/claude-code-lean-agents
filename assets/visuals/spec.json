@@ -1,0 +1,175 @@
+{
+  "source": "Median tokens on the first API request of each subagent run, 30 days of one heavy Claude Code setup (scripts/measure_subagents.py).",
+  "start": {
+    "title": "A general-purpose subagent starts 17 to 18 times heavier",
+    "note": [
+      "Median tokens before the agent reads its brief, over 30 days on one heavy setup.",
+      "Measure your own with: python3 scripts/measure_subagents.py"
+    ],
+    "rows": [
+      {
+        "label": "general-purpose",
+        "value": 131.1,
+        "color": "red",
+        "baseline": true
+      },
+      {
+        "label": "fork",
+        "value": 104.6,
+        "color": "grey"
+      },
+      {
+        "label": "Plan (built in)",
+        "value": 61.2,
+        "color": "yellow"
+      },
+      {
+        "label": "Explore (built in)",
+        "value": 60.2,
+        "color": "yellow"
+      },
+      {
+        "label": "lean-checker",
+        "value": 7.8,
+        "color": "green",
+        "bold": true,
+        "compare": true
+      },
+      {
+        "label": "lean-worker",
+        "value": 7.4,
+        "color": "green",
+        "bold": true,
+        "compare": true
+      }
+    ]
+  },
+  "loads": {
+    "title": "Lean agents leave the heavy parts behind",
+    "note": [
+      "Blue and green: what the job uses. Red: loaded on every turn, whether the job needs it or not.",
+      "654 of 852 general-purpose runs (77%) never called a single MCP tool."
+    ],
+    "cards": [
+      {
+        "name": "general-purpose",
+        "color": "red",
+        "total": "131k",
+        "total_note": "tokens before it starts (median)",
+        "items": [
+          [
+            "Your brief",
+            "ok"
+          ],
+          [
+            "System prompt and its tools",
+            "ok"
+          ],
+          [
+            "Every CLAUDE.md file",
+            "heavy"
+          ],
+          [
+            "The list of every skill",
+            "heavy"
+          ],
+          [
+            "Every MCP tool definition",
+            "heavy"
+          ],
+          [
+            "The list of every agent",
+            "heavy"
+          ]
+        ]
+      },
+      {
+        "name": "lean-worker and lean-checker",
+        "color": "green",
+        "total": "7.4k to 7.8k",
+        "total_note": "tokens before it starts (median)",
+        "items": [
+          [
+            "Your brief",
+            "ok"
+          ],
+          [
+            "Short system prompt, 6 to 8 tools",
+            "ok"
+          ],
+          [
+            "A few house rules",
+            "ok"
+          ],
+          [
+            "CLAUDE.md files",
+            "skip"
+          ],
+          [
+            "Skills list",
+            "skip"
+          ],
+          [
+            "MCP tools",
+            "skip"
+          ],
+          [
+            "Agent list",
+            "skip"
+          ]
+        ]
+      }
+    ]
+  },
+  "turns": {
+    "title": "Every turn re-sends that load",
+    "subtitle": "Starting load sent over a 10 turn job",
+    "note": [
+      "Starting load times 10 turns. The job's own tokens come on top, and they are the same for both.",
+      "Cached reads cost less, but they still count toward your usage."
+    ],
+    "turns": 10,
+    "rows": [
+      {
+        "label": "general-purpose",
+        "per_turn": 131.1,
+        "color": "red"
+      },
+      {
+        "label": "lean-worker",
+        "per_turn": 7.4,
+        "color": "green",
+        "bold": true
+      }
+    ]
+  },
+  "which": {
+    "title": "Which agent should take the job?",
+    "note": "lean-worker is the default for everything else: edits, scripts, tests, fetching a page.",
+    "start": "A job to hand to a subagent",
+    "questions": [
+      {
+        "q": "Does it need an MCP tool or a skill?",
+        "yes": "general-purpose, or a specialist",
+        "color": "blue"
+      },
+      {
+        "q": "Does it rely on long rules in CLAUDE.md?",
+        "yes": "general-purpose",
+        "color": "blue"
+      },
+      {
+        "q": "Is it a broad, read only code search?",
+        "yes": "Explore (built in)",
+        "color": "yellow"
+      },
+      {
+        "q": "Is it checking work against criteria?",
+        "yes": "lean-checker",
+        "color": "green"
+      }
+    ],
+    "otherwise": "lean-worker",
+    "otherwise_color": "green"
+  }
+}
