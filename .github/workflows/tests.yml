@@ -1,0 +1,65 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check tools
+        run: python -m pip install --quiet pytest ruff mypy pyyaml
+
+      - name: Lint
+        run: ruff check --select E,F,I --line-length 100 hooks scripts tests
+
+      - name: Type check
+        run: mypy --strict hooks/lean_dispatch_nudge.py scripts/measure_subagents.py
+
+      - name: Hook tests
+        run: pytest -q tests
+
+      - name: Agent frontmatter is valid YAML
+        run: |
+          python - <<'PY'
+          import yaml
+          for path in ("agents/lean-worker.md", "agents/lean-checker.md"):
+              meta = yaml.safe_load(open(path).read().split("---")[1])
+              for key in ("name", "description", "tools", "model"):
+                  assert meta.get(key), f"{path}: missing {key}"
+              assert meta["omitClaudeMd"] is True, f"{path}: omitClaudeMd must be true"
+              assert "Skill" not in meta["tools"] and "mcp__" not in meta["tools"], path
+              print(path, "ok")
+          PY
+
+      - name: Install and uninstall in a throwaway home
+        run: |
+          export HOME="$(mktemp -d)"
+          ./install.sh --hook
+          test -f "$HOME/.claude/agents/lean-worker.md"
+          test -f "$HOME/.claude/agents/lean-checker.md"
+          test -f "$HOME/.claude/hooks/lean_dispatch_nudge.py"
+          echo "edited" >> "$HOME/.claude/agents/lean-checker.md"
+          ./uninstall.sh --hook
+          test ! -e "$HOME/.claude/agents/lean-worker.md"
+          ls "$HOME"/.claude/agents/lean-checker.md.bak-* > /dev/null
+          test ! -e "$HOME/.claude/hooks/lean_dispatch_nudge.py"
+          if ./uninstall.sh --bogus; then echo "bad flag accepted"; exit 1; fi
+
+      - name: Measurement script runs on a synthetic transcript
+        run: |
+          root="$(mktemp -d)"
+          mkdir -p "$root/p/s/subagents"
+          for i in 1 2 3; do
+            echo '{"agentType":"lean-worker"}' > "$root/p/s/subagents/a$i.meta.json"
+            echo "{\"type\":\"assistant\",\"message\":{\"usage\":{\"input_tokens\":${i}000}}}" > "$root/p/s/subagents/a$i.jsonl"
+          done
+          python scripts/measure_subagents.py --root "$root" | tee out.txt
+          grep -E "lean-worker +3 +2.0k" out.txt

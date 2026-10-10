@@ -8,6 +8,8 @@
 Two drop-in subagents that start at about <b>7.5k tokens</b> instead of the <b>131k</b> a general-purpose subagent carried on my setup.
 </p>
 
+<p align="center"><a href="https://github.com/mdalexandre/claude-code-lean-agents/actions/workflows/tests.yml"><img src="https://github.com/mdalexandre/claude-code-lean-agents/actions/workflows/tests.yml/badge.svg" alt="tests"></a></p>
+
 <p align="center"><sub>Requires Claude Code 2.1.271 or later (2.1.296 or later for the <code>autoCompactWindow</code> line).</sub></p>
 
 ---
@@ -102,6 +104,8 @@ Claude picks a subagent by its description, and both descriptions say "use it in
 > Use lean-checker to check `docs/api.md` against these criteria: 1. every endpoint in `routes.py` is documented, 2. every example request is valid JSON.
 
 **Put everything the job needs into the brief.** A lean agent has not read your CLAUDE.md, so it does not know your conventions unless you, or the main session, tell it. In practice the main session already writes self contained briefs; just keep in mind that "follow our usual style" means nothing to it.
+
+**Permissions work as usual.** The lean agents follow your normal Claude Code permission settings. In the interactive app, Claude asks you before an agent edits a file or runs a command. In a headless run (`claude -p`), nothing can be asked, so allow what the job needs up front, for example `--permission-mode acceptEdits --allowedTools Bash`, or the agents can only read. lean-checker reports a criterion it could not run as UNTESTED rather than guessing PASS.
 
 **For blind QA, keep the brief blind.** Give lean-checker the artifact, the criteria and the file paths, never your own verdict. A checker told "I verified this works, please confirm" will usually confirm.
 
