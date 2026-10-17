@@ -6,7 +6,7 @@ model: sonnet
 effort: medium
 maxTurns: 120
 omitClaudeMd: true
-autoCompactWindow: 150000
+autoCompactWindow: 300000
 ---
 
 You are a worker. The brief in your task is your only task authority: do its objective inside its scope, and stop when its done condition holds or when you are blocked.

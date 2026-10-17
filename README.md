@@ -79,7 +79,7 @@ tools: Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch
 model: sonnet
 effort: medium
 omitClaudeMd: true
-autoCompactWindow: 150000
+autoCompactWindow: 300000
 ---
 ```
 
