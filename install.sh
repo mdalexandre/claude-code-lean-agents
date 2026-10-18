@@ -46,6 +46,10 @@ if [ "$with_hook" = 1 ]; then
     ]
   }
 JSON
+  echo
+  echo "On Windows, a hook command runs in Git Bash if Git for Windows is installed, else in PowerShell."
+  echo "The docs do not say whether ~ is expanded there, and python3 may not exist. Try py or python, with a full path that includes the drive letter, for example:"
+  echo '  "command": "py C:/Users/YOUR_NAME/.claude/hooks/lean_dispatch_nudge.py"'
 fi
 
 echo

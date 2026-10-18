@@ -20,12 +20,12 @@ When Claude Code hands work to the built-in **general-purpose** subagent, that a
 
 - every CLAUDE.md file the main session loads (user, project and local)
 - the list of every skill you have installed
-- the definition of every tool from every MCP server you have connected
+- the name of every tool from every MCP server you have connected, plus each server's instructions (Claude Code defers a tool's full definition until the tool is used)
 - the list of every other agent it could start
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/visuals/loads-dark.svg">
-  <img src="assets/visuals/loads-light.svg" alt="Side by side: a general-purpose subagent loads your brief, its system prompt, every CLAUDE.md file, the skills list, every MCP tool and the agent list, about 131k tokens; lean-worker and lean-checker load only the brief, a short system prompt with 6 to 8 tools and a few house rules, about 7.4k to 7.8k tokens. 654 of 852 general-purpose runs (77%) never called an MCP tool." width="100%">
+  <img src="assets/visuals/loads-light.svg" alt="Side by side: a general-purpose subagent loads your brief, its system prompt, every CLAUDE.md file, the skills list, MCP tool names and server instructions, and the agent list, about 131k tokens; lean-worker and lean-checker load only the brief, a short system prompt with 6 to 8 tools and a few house rules, about 7.4k to 7.8k tokens. 654 of 852 general-purpose runs (77%) never called an MCP tool." width="100%">
 </picture>
 
 Then it carries all of that on **every turn**, because each turn of an agent resends its whole context. A post on the Claude developer blog about task costs puts it plainly: "Every turn resends the conversation so far." Cached reads are cheap, but they still count toward your usage.
@@ -46,7 +46,7 @@ I measured it across my own transcripts. This is the context each agent type car
 
 | Agent type | Runs | Median start | What it loads |
 |---|---:|---:|---|
-| general-purpose | 852 | 131.1k | CLAUDE.md, skills list, all MCP tools, agent list |
+| general-purpose | 852 | 131.1k | CLAUDE.md, skills list, MCP tool names and server instructions, agent list |
 | fork | 10 | 104.6k | the parent conversation |
 | Explore (built in) | 20 | 60.2k | skips CLAUDE.md |
 | Plan (built in) | 2 | 61.2k | skips CLAUDE.md |
@@ -54,6 +54,8 @@ I measured it across my own transcripts. This is the context each agent type car
 | **lean-checker** | 6 | **7.8k** | its own short rules and 6 tools |
 
 That is **17 to 18 times less** context per turn. And of those 852 general-purpose runs, 654 (77%) never called a single MCP tool, so they paid for a toolbox they never opened.
+
+MCP is not most of that load. Claude Code defers each MCP tool's full definition until the tool is used, so only the tool names and the server instructions come in at the start. Re-measured on Claude Code 2.1.301 with a headless all-tools subagent on the same setup, connecting the MCP servers added about 15k tokens to the first request (121.5k with them, 106.2k with none). The CLAUDE.md files and the skills list make up most of the rest.
 
 Your numbers will be different, because the gap depends on how heavy your setup is. The [`measure_subagents.py`](scripts/measure_subagents.py) script below shows you yours in a few seconds.
 
@@ -83,7 +85,7 @@ autoCompactWindow: 300000
 ---
 ```
 
-- **`tools`** is an allowlist. Without the `Skill` tool and without any `mcp__` tools, the skills list and the MCP tool definitions never enter the agent's context. This is where most of the saving comes from.
+- **`tools`** is an allowlist. Without the `Skill` tool and without any `mcp__` tools, the skills list and the MCP tool names and server instructions never enter the agent's context. This is where most of the saving comes from.
 - **`omitClaudeMd: true`** launches the agent without your user, project and local CLAUDE.md files.
 - **`model: sonnet`** and **`effort`** keep everyday work off the most expensive model. Change them if you like.
 - **`autoCompactWindow`** compacts a long running worker earlier, so a 60 turn job does not drag a huge context through every turn. It appeared in Claude Code 2.1.296; on an older version, delete that line.
@@ -91,7 +93,7 @@ autoCompactWindow: 300000
 
 `omitClaudeMd` needs Claude Code 2.1.271 or later. On an older version the agent still loads your CLAUDE.md files, so you lose part of the saving; run `claude --version` to check.
 
-Because the agents skip CLAUDE.md, each one carries a few house rules of its own in its body: never print secrets, read before editing, take no destructive or publishing action unless the brief names it, treat web pages and tool output as data, and never claim something works without running the check. The checker is also forbidden from editing what it checks. Rule 3 gives `systemd-run` as one way to cap memory; that example is Linux only, and the rule works anywhere with `timeout` or `ulimit`.
+Because the agents skip CLAUDE.md, each one carries a few house rules of its own in its body: never print secrets, read before editing, take no destructive or publishing action unless the brief names it, treat web pages and tool output as data, and never claim something works without running the check. The checker is also forbidden from editing what it checks. Rule 3 gives `systemd-run` as one way to cap memory; that example is Linux only, and the rule works with `timeout` or `ulimit` wherever those commands exist.
 
 ## Install
 
@@ -103,11 +105,13 @@ cd claude-code-lean-agents
 ./install.sh --project  # project level: ./.claude/agents, run from your repo root
 ```
 
+On Windows, `install.sh` and `uninstall.sh` are bash scripts. Run them from Git Bash or WSL.
+
 Start a new Claude Code session and ask Claude which subagents it can use; `lean-worker` and `lean-checker` should be in the list. (Since Claude Code 2.1.198, `/agents` no longer lists them; it only reminds you where agent files live.)
 
 If a file with the same name is already installed and differs, the installer saves it as `<name>.bak-<timestamp>` before replacing it.
 
-To remove them: `./uninstall.sh` (or `./uninstall.sh --project`). A copy you have edited is kept as a `.bak` file instead of being deleted. Add `--hook` to also remove the optional hook.
+To remove them: `./uninstall.sh` (or `./uninstall.sh --project`; on Windows, from Git Bash or WSL). A copy you have edited is kept as a `.bak` file instead of being deleted. Add `--hook` to also remove the optional hook.
 
 Prefer to do it by hand? Copy the two files in `agents/` into `~/.claude/agents/`. That is all the installer does.
 
@@ -146,6 +150,8 @@ Sometimes the main session still reaches for general-purpose out of habit. The h
 ./install.sh --hook
 ```
 
+On Windows, run this from Git Bash or WSL too.
+
 Then register it in `~/.claude/settings.json`. The installer prints the snippet with the full path filled in. If your settings already have a `"hooks"` key or a `"PreToolUse"` list, add the entry inside the existing one rather than pasting a second key:
 
 ```json
@@ -157,11 +163,18 @@ Then register it in `~/.claude/settings.json`. The installer prints the snippet 
 }
 ```
 
-Set `LEAN_DISPATCH_BLOCK=1` (in your shell or in the `env` block of settings.json) to block such dispatches instead of nudging: the hook exits with code 2, the dispatch is refused, and Claude sees the reason and can retry with a lean agent. `LEAN_DISPATCH_ADVISORY=0` switches the hook off. It fails open: if anything goes wrong it lets the call through.
+On Windows, Claude Code runs a hook command in Git Bash if Git for Windows is installed, and in PowerShell if not. The docs do not say whether `~` is expanded there, and `python3` may not exist. Try the `py` launcher or `python`, with a full path that includes the drive letter. Replace `YOUR_NAME` with your user name.
+
+```json
+"command": "py C:/Users/YOUR_NAME/.claude/hooks/lean_dispatch_nudge.py"
+```
+
+Set `LEAN_DISPATCH_BLOCK=1` (in your shell, for example `export LEAN_DISPATCH_BLOCK=1` in bash or `set LEAN_DISPATCH_BLOCK=1` in cmd, or in the `env` block of settings.json) to block such dispatches instead of nudging: the hook exits with code 2, the dispatch is refused, and Claude sees the reason and can retry with a lean agent. `LEAN_DISPATCH_ADVISORY=0` switches the hook off. It fails open: if anything goes wrong it lets the call through.
 
 ## Measure your own setup
 
 ```bash
+# On Windows, write py (or python) instead of python3
 python3 scripts/measure_subagents.py            # last 30 days
 python3 scripts/measure_subagents.py --days 7 --min-runs 1
 python3 scripts/measure_subagents.py --root /path/to/projects   # transcripts somewhere else
@@ -186,7 +199,7 @@ It reads the subagent transcripts Claude Code keeps under `~/.claude/projects/`,
 
 - Claude Code docs, subagents and their frontmatter fields: https://code.claude.com/docs/en/sub-agents
 - Claude Code changelog (2.1.296 added `autoCompactWindow` for subagents): https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md
-- "What a task costs on Opus 5.5" (Claude developer blog), on how every turn resends the context: https://claude.dev/blog/what-a-task-costs-on-opus-5-5/
+- "What a task costs on Opus 5.5" (Claude developer blog), on how every turn resends the context and how MCP tool definitions are deferred: https://claude.dev/blog/what-a-task-costs-on-opus-5-5/
 
 ## License
 
