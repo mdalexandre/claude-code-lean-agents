@@ -63,6 +63,31 @@ class Question:
     hypotheses: list[str] = field(default_factory=list)
 
 
+def _texts(v: Any) -> bool:
+    return isinstance(v, list) and all(isinstance(x, str) for x in v)
+
+
+def _checked_question(q: Question) -> Question:
+    if not (isinstance(q.id, str) and isinstance(q.observation, str)
+            and isinstance(q.depth, int) and not isinstance(q.depth, bool)
+            and (q.parent is None or isinstance(q.parent, str))
+            and q.status in ("OPEN", "CLOSED", "BUDGET_EXHAUSTED") and _texts(q.hypotheses)):
+        raise TypeError("question fields")
+    return q
+
+
+def _checked_hypothesis(h: Hypothesis) -> Hypothesis:
+    if not (all(isinstance(x, str) for x in (h.id, h.question, h.provenance, h.mechanism,
+                                             h.falsification, h.unresolved_reason))
+            and h.status in STATUSES and _texts(h.predictions) and _texts(h.uncertainties)
+            and isinstance(h.results, list)
+            and all(isinstance(r, dict) and r.get("outcome") in OUTCOMES
+                    and isinstance(r.get("note", ""), str)
+                    and isinstance(r.get("sha256", ""), str) for r in h.results)):
+        raise TypeError("hypothesis fields")
+    return h
+
+
 def _norm(text: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9 ]", " ", text.lower()).split())
 
@@ -100,8 +125,10 @@ class Ledger:
         q = Question(qid, observation, depth, parent)
         if depth > self.budget["max_depth"] or len(self.questions) >= self.budget["max_nodes"]:
             q.status = "BUDGET_EXHAUSTED"
-            self.backlog.append({"question": qid, "observation": observation,
-                                 "reason": "recursion budget exhausted"})
+            entry = {"question": qid, "observation": observation,
+                     "reason": "recursion budget exhausted"}
+            if entry not in self.backlog:  # a repeated refusal is one row, not many
+                self.backlog.append(entry)
         self.questions[qid] = q
         return q
 
@@ -221,6 +248,45 @@ class Ledger:
                 "questions": [asdict(q) for q in self.questions.values()],
                 "hypotheses": [asdict(h) for h in self.hypotheses.values()],
                 "backlog": self.backlog, "violations": self.validate()}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Ledger:
+        """Rebuild a ledger written by to_dict; a malformed document raises DiscoveryError."""
+        try:
+            b = data["budget"]  # a saved file may lower the bounds, never raise them
+            led = cls(min(int(b["max_depth"]), MAX_DEPTH),
+                      min(int(b["max_per_node"]), MAX_PER_NODE),
+                      min(int(b["max_nodes"]), MAX_NODES))
+            for q in data["questions"]:
+                led.questions[q["id"]] = _checked_question(Question(**q))
+            for h in data["hypotheses"]:
+                led.hypotheses[h["id"]] = _checked_hypothesis(Hypothesis(**h))
+            backlog = data.get("backlog", [])
+            if not isinstance(backlog, list):
+                raise TypeError("backlog")
+            led.backlog = list(backlog)
+            led._recompute_depths()
+            for q in led.questions.values():
+                if any(hid not in led.hypotheses for hid in q.hypotheses):
+                    raise KeyError("hypothesis")
+            if any(h.question not in led.questions for h in led.hypotheses.values()):
+                raise KeyError("question")
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+            raise DiscoveryError(f"ledger document unusable: {type(exc).__name__}") from None
+        return led
+
+    def _recompute_depths(self) -> None:
+        """Depth comes from the parent chain, never from the stored number: an edited depth
+        cannot lift the depth bound. A missing parent or a cycle makes the ledger unusable."""
+        for q in self.questions.values():
+            depth, cur, seen = 0, q, {q.id}
+            while cur.parent is not None:
+                cur = self.questions[cur.parent]
+                if cur.id in seen:
+                    raise ValueError("question cycle")
+                seen.add(cur.id)
+                depth += 1
+            q.depth = depth
 
     def dump(self, path: Path) -> None:
         path.write_text(json.dumps(self.to_dict(), indent=1, sort_keys=True), encoding="utf-8")

@@ -248,3 +248,28 @@ Defects found by the blind review (one lean-checker, same model family as the au
 * D8 (medium), found by the real data check after these repairs and repaired: only usage records were cut at `--days` and `--now`. Rerunning the 28 day audit at the same `--now` the next morning moved 18 recommendations from INSUFFICIENT_EVIDENCE to INVESTIGATE, because 432 skill or MCP listings and 4,818 tool calls from 25 later sessions were counted (1,942 exposure sessions instead of 1,930 inside the window). Tool and listing records now obey the window. The rerun audit counts 1,930 exposure sessions: 535 INVESTIGATE, 38 INSUFFICIENT_EVIDENCE, 7 UNKNOWN, 576 KEEP, 7 unread gaps. The 13 fewer KEEP are capabilities whose only uses fell outside the 28 days. The 7 day burn total (18,352,496,874), the lessons, the snapshots and the share file were unchanged by every repair.
 
 After the repairs: 248 tests pass under Python 3.12.3 and 3.14.4, ruff and `mypy --strict` are clean, and the harness catches 53 of 53 mutations after a passing baseline. These numbers are from the working tree on 2026-11-02; no procedure was requalified for them yet.
+
+## ARI 3.0.0 (2026-11-02)
+
+The operator (`scripts/ari_operator.py`, `scripts/ari/governor.py` and the modules it pins) was built from the ARI 3.0 concept and repaired over four rounds, each driven by a blind review (one lean-checker each, same model family as the author). The third review passed 5 of 15 criteria; round 4 repaired every defect it ranked critical, high and medium, and most low ones. Each repair has a test written first and watched fail (`tests/test_ari3_round4.py`), and a control in `tests/mutation_controls.py`.
+
+Round 4 repairs, by the review's numbering:
+
+* Critical 1: hostile state no longer stops ticks. JSON nested too deeply, a 400 digit integer, a lock or journal that is a folder or unreadable, a file where a working folder belongs, a bad candidate store on the SAFE path: each is set aside with an incident. A last resort handler writes `tick_crashes.jsonl`.
+* Critical 2: every model call is recorded. A `call_started` row and the offered list are saved before the call, so a call killed midway counts at its budget and as a failure and is not asked again on the same evidence; a call that raises counts at its budget; huge reported costs and token counts are bounded.
+* High 3: a canary is not judged while transcript gaps are unread or when no transcript line was read for its window; each canary uses its own window.
+* High 4: a wrongly typed candidate or investigation moves to a quarantine file instead of failing every later tick.
+* High 5: an APPROVED or CANARY candidate without a matching approval record is quarantined; the approval prompt shows the verification rule and masks control characters. A consistent rewrite of the content and both hashes by a process running as the owner remains possible and is documented as a limit.
+* High 6: secret values after keywords, after bearer or basic, and in URL credentials are replaced in tool and model error text; excerpts also drop URL credentials and cookies.
+* Medium 7 to 14: depths are recomputed from the parent chain; rule pairs that cannot support, cannot refute, or can do both are refused; the tick tools are pinned; observer output with bad bytes or deep JSON is a failed tool; the 60 per tick bound is documented as new investigations; the C14 test gaps have tests and controls.
+
+Not repaired: non atomic writes of brief.md, the journal, the hook mark and the pin file (low); over aggressive dropping of harmless text by the secret screen (low, documented); the hook's UTC day (low); a word repeated in three corrections can carry a password (documented); a new file added under `scripts/` is not detected by the pin (documented).
+
+Checks on the working tree, 2026-11-02:
+
+* 479 tests pass (Python 3.14.4); ruff and `mypy --strict` are clean.
+* The mutation harness ran an unmutated baseline (463 passed) and caught 182 of 182 mutations.
+* Procedure `ari-tests` 3.0.0 under criteria `ari-suite-v6` (floor 344, the static count of `def test_` lines; negative control the mutation harness): experiment and validation PASS, then QUALIFIED by a separately dispatched lean-checker in 3 trials of 479 tests each with identical identity digests and both negative controls passing every trial. Record: `~/.vgtp/claude-code-lean-agents/qualifications/ari-tests-3.0.0-20261102T174754/qualification.json`. It is not promoted; production stays on 2.0.2.
+* A real code only tick on the owner's transcripts: OK, 3:32 wall time, 584 MB peak resident memory, 794 listed but unused skills, 60 investigations opened and probed, no incidents. The model layer was not run against the real `claude` CLI.
+
+Limits: the reviewers and the qualifier are the same model family as the author. The approval gate proves someone is at the terminal, not who. Nothing is installed: the timer and the SessionStart hook need the owner to run `deploy/install_ari_operator.sh install`.

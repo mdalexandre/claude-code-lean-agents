@@ -1,0 +1,20 @@
+# ARI 3.0 operator: one governed tick. Installed only by deploy/install_ari_operator.sh.
+# @REPO@ is replaced with the repository path at install time.
+[Unit]
+Description=ARI 3.0 operator tick (observe, investigate, regulate, write the brief)
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+MemoryHigh=8G
+MemoryMax=12G
+MemorySwapMax=2G
+# worst case: three model calls of 300 s plus three transcript scans
+TimeoutStartSec=2h
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+WorkingDirectory=@REPO@
+ExecStart=/usr/bin/python3 @REPO@/scripts/ari_operator.py --state-dir %h/.ari/operator tick
+# exit 75 is BUSY (another tick holds the lock) and 3 is SAFE (protected files changed):
+# both are expected states, not unit failures; the brief explains them.
+SuccessExitStatus=3 75
