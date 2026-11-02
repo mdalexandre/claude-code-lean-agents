@@ -67,6 +67,7 @@ Your numbers will be different, because the gap depends on how heavy your setup 
 | `agents/lean-checker.md` | Blind, read only checker: tests an artifact against criteria, PASS or FAIL per criterion with evidence |
 | `hooks/lean_dispatch_nudge.py` | Optional hook that nudges Claude toward the lean agents when it reaches for general-purpose |
 | `scripts/measure_subagents.py` | Reads your transcripts and prints the starting context of every agent type you use |
+| `scripts/weekly_burn.py`, `scripts/skill_mcp_audit.py`, `scripts/ari_report.py`, `scripts/ari_nightly.py` | Agent Runtime Intelligence: weekly burn forecast, skills and MCP audit, offline HTML report, opt in nightly lessons ([docs](docs/ari/README.md)) |
 | `scripts/make_visuals.py` | Redraws the diagrams in this README from `assets/visuals/spec.json` |
 | `install.sh`, `uninstall.sh` | Copy the agents (and optionally the hook) into place, with backups |
 
@@ -181,6 +182,17 @@ python3 scripts/measure_subagents.py --root /path/to/projects   # transcripts so
 ```
 
 It reads the subagent transcripts Claude Code keeps under `~/.claude/projects/`, takes the first API request of each run, and prints the median and 90th percentile starting context per agent type. It only reads, needs nothing beyond the Python standard library, and sends nothing anywhere. Run it before installing, use the lean agents for a few days, run it again.
+
+### Go further: Agent Runtime Intelligence
+
+```bash
+cd scripts
+python3 weekly_burn.py                          # this week's transcript tokens per agent type, with a forecast
+python3 skill_mcp_audit.py                      # installed, exposed and used skills and MCP servers
+python3 ari_report.py --out ~/ari-report.html   # one offline HTML page with all of it
+```
+
+These read the same transcripts, deduplicate streamed copies of each request, and keep token categories apart. They report transcript tokens, not subscription quota, so the provider quota ETA is always shown as unavailable. They recommend; they never uninstall, disable or upload anything. Details and limits: [docs/ari/README.md](docs/ari/README.md).
 
 ## Customize
 

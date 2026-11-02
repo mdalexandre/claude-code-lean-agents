@@ -1,0 +1,70 @@
+{
+ "schema": "ari-concept-graph/1",
+ "version": "0.1.0",
+ "budget": {"max_nodes": 28, "max_level": 4, "note": "about 24 nodes and 4 levels, extended by 2 only where a branch had a discriminating question"},
+ "relation_types": ["depends_on", "measured_by", "hypothesizes", "tests", "constrains", "addresses", "implements"],
+ "nodes": [
+  {"id": "R1", "level": 1, "type": "root", "label": "Agent execution observability"},
+  {"id": "R2", "level": 1, "type": "root", "label": "Resource consumption"},
+  {"id": "R3", "level": 1, "type": "root", "label": "Capability exposure and necessity"},
+  {"id": "R4", "level": 1, "type": "root", "label": "Causal and abductive diagnosis"},
+  {"id": "R5", "level": 1, "type": "root", "label": "Reproducible comparison"},
+  {"id": "R6", "level": 1, "type": "root", "label": "Privacy and trust"},
+  {"id": "R7", "level": 1, "type": "root", "label": "Procedural learning"},
+  {"id": "R8", "level": 1, "type": "root", "label": "Human governed adaptation"},
+  {"id": "P1", "level": 2, "type": "problem", "label": "One API request is logged as several streamed lines; summing lines inflates totals", "evidence": "OBSERVED: a real lean-checker transcript held 9 requests in 17 assistant lines"},
+  {"id": "P2", "level": 2, "type": "problem", "label": "Weekly limits are the binding constraint, but transcript tokens are not quota units", "evidence": "OBSERVED: Ultra removed the 5 hour limit and kept the weekly cap (posts read 2026-11-01); quota unit mapping UNKNOWN"},
+  {"id": "P3", "level": 2, "type": "problem", "label": "Exposed but unused skills and MCP servers cost starting context", "evidence": "OBSERVED: skill_listing, mcp_instructions_delta and deferred_tools_delta attachments in main transcripts"},
+  {"id": "P4", "level": 2, "type": "problem", "label": "No Skill call does not mean a skill was unnecessary (skills are also followed by reading their files)", "evidence": "OBSERVED: this machine's CLAUDE.md tells agents to Read SKILL.md files directly"},
+  {"id": "P5", "level": 2, "type": "problem", "label": "A context change coinciding with a config change is easily read as its cause", "evidence": "JUDGMENT"},
+  {"id": "P6", "level": 2, "type": "problem", "label": "Agent type comparisons are confounded by version, model, project and CLAUDE.md exposure", "evidence": "OBSERVED: lean agents differ from general-purpose in three mechanisms at once (agent files)"},
+  {"id": "P7", "level": 2, "type": "problem", "label": "A shared summary can identify a person through paths, project names, custom agent names or timestamps", "evidence": "JUDGMENT"},
+  {"id": "P8", "level": 2, "type": "problem", "label": "Lessons written by a nightly job get reused before anyone tested them", "evidence": "JUDGMENT"},
+  {"id": "P9", "level": 2, "type": "problem", "label": "Automatic removal of skills or servers can silently remove a needed capability", "evidence": "JUDGMENT"},
+  {"id": "E1", "level": 3, "type": "evidence", "label": "Assistant usage records with requestId, timestamp, model, version"},
+  {"id": "E2", "level": 3, "type": "evidence", "label": "Attachment exposure records, tool_use names, slash commands, subagent meta agentType"},
+  {"id": "H1", "level": 3, "type": "hypothesis", "label": "Context gap explanations: CLAUDE.md, skills list, MCP names, agent initialisation, version or model, environment"},
+  {"id": "C0", "level": 4, "type": "capability", "label": "Canonical evidence engine", "path": "scripts/ari/evidence.py", "verified_by": "tests/test_ari_evidence.py"},
+  {"id": "C1", "level": 4, "type": "capability", "label": "Weekly burn forecaster", "path": "scripts/weekly_burn.py", "verified_by": "tests/test_ari_forecast.py"},
+  {"id": "C2", "level": 4, "type": "capability", "label": "Skills and MCP capability auditor", "path": "scripts/skill_mcp_audit.py", "verified_by": "tests/test_ari_audit.py"},
+  {"id": "C3", "level": 4, "type": "capability", "label": "Offline HTML report and screened share file", "path": "scripts/ari_report.py", "verified_by": "tests/test_ari_report.py"},
+  {"id": "C4", "level": 4, "type": "capability", "label": "Nightly learning with a gated lesson lifecycle", "path": "scripts/ari_nightly.py", "verified_by": "tests/test_ari_learn.py"},
+  {"id": "C5", "level": 4, "type": "capability", "label": "Abduction store with bounded recursion", "path": "scripts/ari/abduction.py", "verified_by": "tests/test_ari_learn.py"}
+ ],
+ "edges": [
+  ["P1", "depends_on", "R1"], ["P2", "depends_on", "R2"], ["P3", "depends_on", "R3"],
+  ["P4", "depends_on", "R3"], ["P5", "depends_on", "R4"], ["P6", "depends_on", "R5"],
+  ["P7", "depends_on", "R6"], ["P8", "depends_on", "R7"], ["P9", "depends_on", "R8"],
+  ["P1", "measured_by", "E1"], ["P2", "measured_by", "E1"], ["P3", "measured_by", "E2"],
+  ["P4", "measured_by", "E2"], ["P6", "measured_by", "E1"], ["P5", "measured_by", "E2"],
+  ["H1", "hypothesizes", "P6"], ["H1", "hypothesizes", "P5"],
+  ["C0", "addresses", "P1"], ["C0", "implements", "R1"],
+  ["C1", "addresses", "P2"], ["C1", "depends_on", "C0"], ["P2", "constrains", "C1"],
+  ["C2", "addresses", "P3"], ["C2", "addresses", "P4"], ["P4", "constrains", "C2"],
+  ["P9", "constrains", "C2"], ["C2", "depends_on", "C0"],
+  ["C3", "addresses", "P6"], ["C3", "addresses", "P7"], ["P7", "constrains", "C3"],
+  ["C3", "depends_on", "C0"],
+  ["C4", "addresses", "P8"], ["C4", "addresses", "P5"], ["P8", "constrains", "C4"],
+  ["C4", "depends_on", "C5"], ["C4", "depends_on", "C0"],
+  ["C5", "addresses", "P5"], ["C5", "tests", "H1"],
+  ["E1", "constrains", "C0"], ["E2", "constrains", "C0"]
+ ],
+ "ranking": {
+  "label": "JUDGMENT, scores 1 to 5 (risk: 5 is lowest risk)",
+  "columns": ["usefulness", "evidence", "low_effort", "low_risk", "testability"],
+  "rows": {
+   "C0": [5, 5, 3, 5, 5],
+   "C1": [5, 3, 4, 4, 5],
+   "C2": [4, 3, 3, 4, 4],
+   "C3": [3, 4, 3, 3, 5],
+   "C4": [3, 2, 3, 4, 4],
+   "C5": [4, 3, 4, 5, 5]
+  }
+ },
+ "transitions": [
+  "P2 to C1: becomes a requirement only with the constraint that no provider quota is derived (ARI-R12).",
+  "P4 to C2: becomes the rule that removal needs zero explicit and zero indirect use plus thresholds (ARI-R17).",
+  "P5 to C4 and C5: an anomaly opens a hypothesis set; it is never written as a cause (ARI-R22).",
+  "P7 to C3: the share file is aggregated, suppressed and screened, and described as not proven anonymous (ARI-R20)."
+ ]
+}

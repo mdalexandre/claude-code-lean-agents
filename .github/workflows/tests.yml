@@ -21,13 +21,15 @@ jobs:
         run: ruff check --select E,F,I --line-length 100 hooks scripts tests
 
       - name: Type check
-        run: mypy --strict hooks/lean_dispatch_nudge.py scripts/measure_subagents.py scripts/make_visuals.py
+        run: |
+          mypy --strict hooks/lean_dispatch_nudge.py scripts/measure_subagents.py scripts/make_visuals.py
+          cd scripts && mypy --strict ari weekly_burn.py skill_mcp_audit.py ari_report.py ari_nightly.py
 
       - name: README diagrams match their spec
         run: python scripts/make_visuals.py --check
 
-      - name: Hook tests
-        run: pytest -q tests
+      - name: Hook, measurement and ARI tests
+        run: pytest -q -p no:cacheprovider tests
 
       - name: Agent frontmatter is valid YAML
         run: |
@@ -69,3 +71,18 @@ jobs:
           done
           python scripts/measure_subagents.py --root "$root" | tee out.txt
           grep -E "lean-worker +3 +2.0k" out.txt
+
+      - name: ARI tools run on a synthetic transcript
+        run: |
+          root="$(mktemp -d)"
+          mkdir -p "$root/p/s/subagents"
+          for d in 1 2 3 4 5; do
+            echo "{\"type\":\"assistant\",\"requestId\":\"r$d\",\"timestamp\":\"2026-10-2${d}T10:00:00Z\",\"message\":{\"model\":\"m\",\"usage\":{\"input_tokens\":${d}000}}}" >> "$root/p/s.jsonl"
+          done
+          cd scripts
+          python weekly_burn.py --root "$root" --now 2026-10-26T12:00:00Z | tee burn.txt
+          grep -q "Provider quota ETA: unavailable" burn.txt
+          python skill_mcp_audit.py --root "$root" --skills-root "$root/none" --mcp-config "$root/none.json" --now 2026-10-26T12:00:00Z
+          python ari_report.py --root "$root" --now 2026-10-26T12:00:00Z --out "$root/r.html" --share "$root/s.json" --skills-root "$root/none" --mcp-config "$root/none.json"
+          ! grep -qi "<script" "$root/r.html"
+          python ari_nightly.py run --root "$root" --state-dir "$root/state" --now 2026-10-26T12:00:00Z --quiet-seconds 0
