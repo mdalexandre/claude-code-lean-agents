@@ -13,6 +13,8 @@ MemorySwapMax=2G
 # worst case: three model calls of 300 s plus three transcript scans
 TimeoutStartSec=2h
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# claude refuses a temp folder it does not own; /tmp/claude-<uid> may be root owned
+Environment=CLAUDE_CODE_TMPDIR=%h/.claude/tmp
 WorkingDirectory=@REPO@
 ExecStart=/usr/bin/python3 @REPO@/scripts/ari_operator.py --state-dir %h/.ari/operator tick
 # exit 75 is BUSY (another tick holds the lock) and 3 is SAFE (protected files changed):
